@@ -24,13 +24,11 @@ var player2Score: u8 = 0;
 var dy: i32 = 1;
 var dx: i32 = 1;
 
-var color: raylib.Color = raylib.Color.init(255, 255, 255, 0);
+const screenWidth = 800;
+const screenHeight = 450;
 
 pub fn main() !void {
     std.debug.print("working", .{});
-
-    const screenWidth = 800;
-    const screenHeight = 450;
 
     var ball: raylib.Vector2 = raylib.Vector2.init(screenWidth / 2, screenHeight / 2);
     var leftPlank: raylib.Rectangle = raylib.Rectangle.init(screenWidth / 15, 4, 10, 50);
@@ -46,8 +44,6 @@ pub fn main() !void {
     while (!raylib.windowShouldClose()) { // Detect window close button or ESC key
         // Update
         const temp = raylib.getKeyPressed();
-        const textWidth: i32 = @as(i32, raylib.measureText("PING PONG IN ZIG", 20));
-        const startText: i32 = raylib.measureText("START GAME", 16);
 
         if (temp != raylib.KeyboardKey.key_null) {
             std.debug.print("{any}\n", .{temp});
@@ -56,50 +52,23 @@ pub fn main() !void {
             }
         }
 
-        if (raylib.checkCollisionCircleRec(ball, 5, leftPlank) or raylib.checkCollisionCircleRec(ball, 5, rightPlank)) {
-            dx = -dx;
-        }
-
-        if (ball.x == 0) {
-            player2Score += 1;
-        } else if (ball.x == screenWidth) {
-            player1Score += 1;
-        }
-
-        if (player1Score == 5 or player2Score == 5) {
-            GAME_ENDED = true;
-            winner = if (player1Score == 5) 0 else 1;
-        }
+        scoreKeeper(ball);
 
         //----------------------------------------------------------------------------------
         // TODO: Update your variables here
         if (!PAUSED) {
-            if (ball.y >= screenHeight or ball.y <= 0) {
-                dy = -dy;
-            }
-            if (ball.x >= screenWidth or ball.x <= 0) {
-                dx = -dx;
-            }
+            checkBallPlankCollision(&ball, &leftPlank);
+            checkBallPlankCollision(&ball, &rightPlank);
 
+            ballBoundaryCheck(ball);
+
+            //update state
             ball.y += @floatFromInt(ball_SPEED * dy);
             ball.x += @floatFromInt(ball_SPEED * dx);
-        }
 
-        if (raylib.isKeyDown(raylib.KeyboardKey.key_s) and leftPlank.y + leftPlank.height + plank_SPEED <= screenHeight) {
-            leftPlank.y += plank_SPEED;
+            plankBoundaryCheck(&leftPlank, .{ raylib.KeyboardKey.key_w, raylib.KeyboardKey.key_s });
+            plankBoundaryCheck(&rightPlank, .{ raylib.KeyboardKey.key_up, raylib.KeyboardKey.key_down });
         }
-        if (raylib.isKeyDown(raylib.KeyboardKey.key_w) and leftPlank.y - plank_SPEED >= 0) {
-            leftPlank.y -= plank_SPEED;
-        }
-
-        if (raylib.isKeyDown(raylib.KeyboardKey.key_down) and rightPlank.y + rightPlank.height + plank_SPEED <= screenHeight) {
-            rightPlank.y += plank_SPEED;
-        }
-
-        if (raylib.isKeyDown(raylib.KeyboardKey.key_up) and rightPlank.y - plank_SPEED >= 0) {
-            rightPlank.y -= plank_SPEED;
-        }
-
         //----------------------------------------------------------------------------------
 
         // Draw
@@ -110,24 +79,20 @@ pub fn main() !void {
         raylib.clearBackground(raylib.Color.black);
 
         if (PAUSED) {
-            //raylib.drawText("game ended", screenWidth / 2, screenHeight / 2, 20, raylib.Color.white);
-            _ = gui.guiGroupBox(raylib.Rectangle.init(200, 100, 400, 250), "menu");
-
-            raylib.drawText("PING PONG IN ZIG", 400 - @divExact(textWidth, 2), 120, 20, raylib.Color.white);
-            const buttonInput = gui.guiButton(raylib.Rectangle.init(400 - 50, 180, @floatFromInt(startText), @as(f32, 20)), "START GAME");
-            if (buttonInput == 1) {
+            displayMenu("menu");
+            displayText("PING PONG IN ZIG", 120);
+            const buttonState = displayButton("START BUTTON", 180);
+            if (buttonState == 1) {
                 PAUSED = false;
             }
         } else if (GAME_ENDED) {
             player1Score = 0;
             player2Score = 0;
-            _ = gui.guiGroupBox(raylib.Rectangle.init(200, 100, 400, 250), "GAME ENDED");
-
-            raylib.drawText("GAME OVER", 400 - @divExact(textWidth, 2), 120, 20, raylib.Color.white);
-            raylib.drawText(winner_array[winner], 400 - @divExact(textWidth, 2), 180, 20, raylib.Color.white);
-
-            const buttonInput = gui.guiButton(raylib.Rectangle.init(400 - 50, 250, @floatFromInt(startText), @as(f32, 20)), "Restart");
-            if (buttonInput == 1) {
+            displayMenu("GAME ENDED");
+            displayText("GAME OVER", 120);
+            displayText(winner_array[winner], 180);
+            const buttonState = displayButton("RESTART", 220);
+            if (buttonState == 1) {
                 GAME_ENDED = false;
                 PAUSED = true;
             }
@@ -146,4 +111,61 @@ pub fn main() !void {
         }
         //----------------------------------------------------------------------------------
     }
+}
+
+fn ballBoundaryCheck(ball: raylib.Vector2) void {
+    if (ball.y >= screenHeight or ball.y <= 0) {
+        dy = -dy;
+    }
+
+    if (ball.x >= screenWidth or ball.x <= 0) {
+        dx = -dx;
+    }
+}
+
+fn plankBoundaryCheck(plank: *raylib.Rectangle, key: [2]raylib.KeyboardKey) void {
+    if (raylib.isKeyDown(key[1]) and plank.y + plank.height + plank_SPEED <= screenHeight) {
+        plank.*.y += plank_SPEED;
+    }
+    if (raylib.isKeyDown(key[0]) and plank.y - plank_SPEED >= 0) {
+        plank.*.y -= plank_SPEED;
+    }
+}
+
+fn checkBallPlankCollision(ball: *raylib.Vector2, plank: *raylib.Rectangle) void {
+    if (raylib.checkCollisionCircleRec(ball.*, 5, plank.*)) {
+        dx = -dx;
+    }
+    // if (raylib.checkCollisionCircleRec(ball, 5, leftPlank) or raylib.checkCollisionCircleRec(ball, 5, rightPlank)) {
+    //     dx = -dx;
+    // }
+}
+
+fn scoreKeeper(ball: raylib.Vector2) void {
+    if (ball.x == 0) {
+        player2Score += 1;
+    } else if (ball.x == screenWidth) {
+        player1Score += 1;
+    }
+
+    if (player1Score == 5 or player2Score == 5) {
+        GAME_ENDED = true;
+        winner = if (player1Score == 5) 0 else 1;
+    }
+}
+
+fn displayMenu(title: [:0]const u8) void {
+    _ = gui.guiGroupBox(raylib.Rectangle.init(200, 100, 400, 250), title);
+}
+
+fn displayText(text: [:0]const u8, y: i32) void {
+    const textWidth: i32 = @as(i32, raylib.measureText(text, 20));
+    raylib.drawText(text, 400 - @divExact(textWidth, 2), y, 20, raylib.Color.white);
+}
+
+fn displayButton(title: [:0]const u8, y: i32) i32 {
+    const textWidth: i32 = raylib.measureText(title, 16);
+    const buttonInput = gui.guiButton(raylib.Rectangle.init(400 - 50, @floatFromInt(y), @floatFromInt(textWidth), @as(f32, 20)), title);
+
+    return buttonInput;
 }
