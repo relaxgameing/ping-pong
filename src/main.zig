@@ -60,7 +60,7 @@ pub fn main() !void {
         //         pauseStartTime = @intFromFloat(raylib.getTime());
         //     }
         // }
-        std.debug.print("{}\n", .{gameTime});
+        // std.debug.print("{}\n", .{gameTime});
 
         scoreKeeper(ball);
 
@@ -108,6 +108,7 @@ pub fn main() !void {
             if (buttonState == 1) {
                 GAME_ENDED = false;
                 PAUSED = true;
+                ROUND_ENDED = false;
             }
         } else {
             //game components

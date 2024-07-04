@@ -1,4 +1,12 @@
-./zig-cache
-./build.zig
-./build.zig.zon
-./zig-out
+.zig-cache/
+zig-out/
+build.zig
+build.zig.zon
+
+
+
+# /release/
+# /debug/
+# /build/
+# /build-*/
+# /docgen_tmp
